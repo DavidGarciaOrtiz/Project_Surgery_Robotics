@@ -32,7 +32,7 @@ sock.bind((UDP_IP, UDP_PORT))
 # Initialize RoboDK
 def initialize_robodk(absolute_path):
     RDK = Robolink()
-    time.sleep(2)  # wait for RoboDK to be ready
+    time.sleep(3)  # wait for RoboDK to be ready
     RDK.AddFile(absolute_path)
     robot = RDK.Item(ROBOT_NAME)
     base = RDK.Item(f'{ROBOT_NAME} Base')
@@ -73,10 +73,10 @@ def read_data_UDP():
             try:
                 received_data = json.loads(data.decode())
                 device_id = received_data.get("device")
-                if device_id == "G5_Endo":
+                if device_id == "G4_Endo":
                     with data_lock:
                         Endowrist_rpy = received_data
-                elif device_id == "G5_Gri":
+                elif device_id == "G4_Gri":
                     with data_lock:
                         Gripper_rpy = received_data
             except json.JSONDecodeError:
