@@ -120,3 +120,15 @@ To upload your code to the ESP32 board and monitor the serial output:
 - After the upload is complete, click the "Serial Monitor" button to open the serial monitor. You have to close the terminal to Close the serial port.
 - You can also see the serial monitor from the Terminal menu `SERIAL MONITOR`. Choose the correct COM port and click `Start Monitoring`. You have to `Stop Monitoring` to Close the serial port.
 - The onboard LED should blink on and off every second.
+
+## 🚀 Make Copy of an existing Project 
+
+To copy an existing project and modify its name and code to have a new version:
+
+- Close VScode. The workspace without saving!!.
+- Open a Filesystem explorer and copy the existing project folder to a new one with a different name.
+- Open VScode on the new folder.
+- Open the PlatformIO and select `open project`.
+- Select the New project with the changed name
+- Select `src/main.cpp` and modify the code.
+- Upload and Monitor the new project.

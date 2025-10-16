@@ -22,7 +22,7 @@ You have seen the complexity to perform a simple surgery process in roboDK simul
 The main improvements are based on:
 - Servomotors module:
     - apply the RPY angles to the four servomotors to obtain the desired Gripper orientation.
-    read the torques on the four servomotors to detect the gripper contact with the tissue.
+    - read the torques on the four servomotors to detect the gripper contact with the tissue.
     - send these torques to the Gripper module and PC.
     ![ServomotorsModule](././Images/Session1/Servos1.png)
     ![ServomotorsModule](././Images/Session1/Servos2.png)
@@ -46,10 +46,10 @@ The main improvements are based on:
 
 The proposed tasks for this first session are:
 - Connect properly the Hardware setup
-- Save the ESP32 InitialPrograms for the 3 ESP32 modules using th VScode Arduino Community Edition. Take care about the proper IP address of each module and PC.
+- Save the ESP32 custom Programs for the 3 ESP32 modules using PlatformIO. Take care about the proper IP address of each module and PC.
 - Run the InitSurgeryRobotic_students.rdk file in the roboDK program to visualize the UR5e robot arm and the Endowrist tool.
 - Test the system performances described above 
-- Try to perform a suture process in simulation according to the following video:
+- Try to perform again the suture process in simulation according to the following video:
 [![suture process in simulation](Images/Session1/training.png)](https://youtu.be/1t3-Ggcp_Hg?feature=shared)
 
 Show and explain the system performances to your teacher.
