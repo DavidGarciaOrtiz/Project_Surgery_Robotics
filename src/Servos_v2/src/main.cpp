@@ -78,7 +78,7 @@ void receiveOrientationUDP() {
       }
 
       const char* device = doc["device"];
-      if (strcmp(device, "G5_Gri") == 0) {
+      if (strcmp(device, "G4_Gri") == 0) {
         Gri_roll = round(doc["roll"].as<float>());
         Gri_pitch = round(doc["pitch"].as<float>());
         Gri_yaw = round(doc["yaw"].as<float>());
@@ -115,23 +115,28 @@ float getTorque(float& sum, int analogPin, float& previous) {
 }
 
 void moveServos() {
-  roll = Gri_roll;
-  OldValueRoll = roll;
-  pitch = Gri_pitch;
-  OldValuePitch = pitch;
-  yaw = Gri_yaw;
-  OldValueYaw = yaw;
-
   float delta = 0;
   if (s1 == 0) {
     delta = 40;
     Serial.println("S1 premut → Obrint");
   }
+  // Apply Roll
+  // Servo_roll1 and Servo_roll2 rotate in opposite directions
+  int rollServo1 = constrain(90 + Gri_roll + delta, 0, 180);
+  int rollServo2 = constrain(90 - Gri_roll, 0, 180);
 
-  servo_roll1.write(Gri_roll + delta);
-  servo_roll2.write(180 - Gri_roll);
-  servo_pitch.write(pitch);
-  servo_yaw.write(yaw);
+  // Apply Pitch
+  int pitchServo = constrain(90 + Gri_pitch, 0, 180);
+
+  // Apply Yaw
+  // Relative to 90 degrees neutral, independent of geographical north
+  int yawServo = constrain(90 + Gri_yaw, 0, 180);
+
+  // Update servo positions
+  servo_roll1.write(rollServo1);
+  servo_roll2.write(rollServo2);
+  servo_pitch.write(pitchServo);
+  servo_yaw.write(yawServo);
 }
 
 void setup() {
