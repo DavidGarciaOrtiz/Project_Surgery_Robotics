@@ -44,6 +44,7 @@ float OldValueRoll = 0, OldValuePitch = 0, OldValueYaw = 0;
 float roll = 0, pitch = 0, yaw = 0;
 int s1 = 1, s2 = 1;
 
+// Function to connect to Wi-Fi
 void connectToWiFi() {
   Serial.print("Connecting to Wi-Fi");
   WiFi.begin(ssid, password);
@@ -57,6 +58,7 @@ void connectToWiFi() {
   Serial.println(WiFi.macAddress());
 }
 
+// Function to receive orientation data via UDP
 void receiveOrientationUDP() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
@@ -96,6 +98,7 @@ void receiveOrientationUDP() {
   }
 }
 
+// Function to get current from analog pin, that will be used to get torque from servos
 float getCurrent(uint32_t integrationTimeMs, int pin) {
   uint32_t startTime = millis();
   float integratedCurrent = 0;
@@ -106,6 +109,7 @@ float getCurrent(uint32_t integrationTimeMs, int pin) {
   return integratedCurrent;
 }
 
+// Function to get torque based on current readings
 float getTorque(float& sum, int analogPin, float& previous) {
   float current = getCurrent(20, analogPin);
   sum += current;
@@ -114,6 +118,7 @@ float getTorque(float& sum, int analogPin, float& previous) {
   return diff;
 }
 
+// Function to move servos based on received orientation data
 void moveServos() {
   float delta = 0;
   if (s1 == 0) {
@@ -139,6 +144,46 @@ void moveServos() {
   servo_yaw.write(yawServo);
 }
 
+// Function to update torque readings
+void updateTorques() {
+  Torque_roll1 = getTorque(sumRoll1, PIN_ANALOG_ROLL1, prevRoll1);
+  Torque_roll2 = getTorque(sumRoll2, PIN_ANALOG_ROLL2, prevRoll2);
+  Torque_pitch = getTorque(sumPitch, PIN_ANALOG_PITCH, prevPitch);
+  Torque_yaw   = getTorque(sumYaw, PIN_ANALOG_YAW, prevYaw);
+
+  Serial.print("Torques → Roll1: "); Serial.print(Torque_roll1, 3);
+  Serial.print(" Roll2: "); Serial.print(Torque_roll2, 3);
+  Serial.print(" Pitch: "); Serial.print(Torque_pitch, 3);
+  Serial.print(" Yaw: "); Serial.println(Torque_yaw, 3);
+}
+
+// Function to send torque data via UDP
+void sendTorquesUDP() {
+  // Build JSON payload
+  JsonDocument doc;
+  doc["device"] = deviceId;
+  doc["Torque_roll1"] = Torque_roll1;
+  doc["Torque_roll2"] = Torque_roll2;
+  doc["Torque_pitch"] = Torque_pitch;
+  doc["Torque_yaw"]   = Torque_yaw;
+
+  char jsonBuffer[256];
+  size_t len = serializeJson(doc, jsonBuffer);
+
+  // Send to gripper ESP32
+  udp.beginPacket(receiverESP32IP, udpPort);
+  udp.write((uint8_t*)jsonBuffer, len);
+  udp.endPacket();
+
+  // Send to computer
+  udp.beginPacket(receiverComputerIP, udpPort);
+  udp.write((uint8_t*)jsonBuffer, len);
+  udp.endPacket();
+
+  Serial.println("Sent torque data to gripper and PC.");
+}
+
+// Setup function
 void setup() {
   Serial.begin(115200);
   Wire.begin();
@@ -148,16 +193,19 @@ void setup() {
   udp.begin(udpPort);
   Serial.println("UDP initialized");
 
+  // Configure the PWM that will control the servos
   ESP32PWM::allocateTimer(0);
   ESP32PWM::allocateTimer(1);
   ESP32PWM::allocateTimer(2);
   ESP32PWM::allocateTimer(3);
 
+  // Set a frequency to the servos
   servo_yaw.setPeriodHertz(50);
   servo_pitch.setPeriodHertz(50);
   servo_roll1.setPeriodHertz(50);
   servo_roll2.setPeriodHertz(50);
 
+  // Attach servos to their signal pins
   servo_yaw.attach(PIN_SIGNAL_YAW);
   servo_pitch.attach(PIN_SIGNAL_PITCH);
   servo_roll1.attach(PIN_SIGNAL_ROLL1);
@@ -174,8 +222,11 @@ void setup() {
   servo_roll2.write(90);
 }
 
+// Loop function
 void loop() {
-  receiveOrientationUDP();
-  moveServos();
-  delay(10);
+  receiveOrientationUDP();  // Receive RPY data from G4_Gri
+  moveServos();             // Apply orientation to servos
+  updateTorques();          // Measure current-based torques
+  sendTorquesUDP();         // Send torque values to gripper and PC
+  delay(50);                // Small delay for stability
 }
