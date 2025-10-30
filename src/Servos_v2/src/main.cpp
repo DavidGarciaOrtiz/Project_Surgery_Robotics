@@ -125,10 +125,20 @@ void moveServos() {
     delta = 40;
     Serial.println("S1 premut → Obrint");
   }
-  // Apply Roll
-  // Servo_roll1 and Servo_roll2 rotate in opposite directions
-  int rollServo1 = constrain(90 + Gri_roll + delta, 0, 180);
-  int rollServo2 = constrain(90 - Gri_roll, 0, 180);
+
+if (Gri_roll >= 270 && Gri_roll <= 360){
+    int rollServo1 = constrain(90 + Gri_roll - 360 + delta, 0, 180);
+    int rollServo2 = constrain(90 - Gri_roll + 360, 0, 180);
+    servo_roll1.write(rollServo1);
+    servo_roll2.write(rollServo2);
+  }
+
+  else {
+    int rollServo1 = constrain(90 + Gri_roll + delta, 0, 180);
+    int rollServo2 = constrain(90 - Gri_roll, 0, 180);
+    servo_roll1.write(rollServo1);
+    servo_roll2.write(rollServo2);
+  }
 
   // Apply Pitch
   int pitchServo = constrain(90 + Gri_pitch, 0, 180);
@@ -137,9 +147,6 @@ void moveServos() {
   // Relative to 90 degrees neutral, independent of geographical north
   int yawServo = constrain(90 + Gri_yaw, 0, 180);
 
-  // Update servo positions
-  servo_roll1.write(rollServo1);
-  servo_roll2.write(rollServo2);
   servo_pitch.write(pitchServo);
   servo_yaw.write(yawServo);
 }
