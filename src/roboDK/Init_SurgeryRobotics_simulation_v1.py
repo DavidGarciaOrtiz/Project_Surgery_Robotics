@@ -11,6 +11,7 @@ import os
 # Define the relative and absolute path to the RoboDK project file
 relative_path = "src/roboDK/SurgeryRobotics.rdk"
 absolute_path = os.path.abspath(relative_path)
+
 # Constants
 UDP_IP = "0.0.0.0"
 UDP_PORT = 12345
@@ -23,7 +24,7 @@ READ_INTERVAL_S = 0.01
 Endowrist_rpy = None
 Gripper_rpy = None
 Servo_torques = None
-data_lock = threading.Lock()# semaphor to manage data from 2 threads
+data_lock = threading.Lock() #semaphor to manage data from 2 threads
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
@@ -63,21 +64,6 @@ def endowrist2base_orientation(roll, pitch, yaw):
 def update_text_label(label, tool_orientation, gripper_orientation, status_message, torque_values):
     full_text = f"Tool orientation: {tool_orientation}\nGripper orientation: {gripper_orientation}\n{status_message}\nTorque Values: {torque_values}"
     label.after(0, lambda: label.config(text=full_text))
-    
-# Color codes for terminal output
-def update_torque_button(button, torque_values):
-    try:
-        avg_torque = sum(torque_values) / len(torque_values)
-    except:
-        avg_torque = 0
-    #Color logic
-    if avg_torque < 0.3:
-        color = "green"
-    elif avg_torque < 0.7:
-        color = "yellow"
-    else:
-        color = "red"
-    button.after(0, lambda: button.config(bg=color))      
         
 # Function to read UDP data and update the global variable
 def read_data_UDP():
@@ -96,7 +82,7 @@ def read_data_UDP():
                         Gripper_rpy = received_data
                 elif device_id == "G4_Servos":
                     with data_lock:
-                        Servo_torques = received_data.get("torques")
+                        Servo_torques = received_data
             except json.JSONDecodeError:
                 print("Error decoding JSON data")
         except socket.error as e:
@@ -106,14 +92,14 @@ def read_data_UDP():
             break
 
 # Function to process the latest UDP data and move the robot
-def move_robot(robot, gripper, needle, text_label, torque_button):
+def move_robot(robot, gripper, needle, text_label):
     global ZERO_YAW_TOOL, ZERO_YAW_GRIPPER, Endowrist_rpy, Gripper_rpy, Servo_torques, data_lock
     global e_roll, e_pitch, e_yaw, g_roll, g_pitch, g_yaw, s1, s2, s3, s4
     
     endowrist_orientation_msg = ""
     gripper_orientation_msg = ""
     status_message = ""
-    torque_values = []
+    servo_torques_msg = ""
     
     while True:
         with data_lock:
@@ -121,19 +107,12 @@ def move_robot(robot, gripper, needle, text_label, torque_button):
             current_Gripper_rpy = Gripper_rpy
             current_Servo_torques = Servo_torques
             
-        #Handle torques
-        if current_Servo_torques:
-            torque_values = [round(float(t),2) for t in current_Servo_torques]
-            update_torque_button(torque_button, torque_values)
-        else:
-            torque_values=[0,0,0,0]
-            
         if current_Endowrist_rpy:
-            e_roll = Endowrist_rpy.get("roll")
-            e_pitch = Endowrist_rpy.get("pitch")
-            e_yaw = Endowrist_rpy.get("yaw")
-            s3 = Endowrist_rpy.get("s3")
-            s4 = Endowrist_rpy.get("s4")
+            e_roll = current_Endowrist_rpy.get("roll")
+            e_pitch = current_Endowrist_rpy.get("pitch")
+            e_yaw = current_Endowrist_rpy.get("yaw")
+            s3 = current_Endowrist_rpy.get("s3")
+            s4 = current_Endowrist_rpy.get("s4")
             endo_roll, endo_pitch, endo_yaw = endowrist2base_orientation(e_roll, e_pitch, e_yaw)
             #print(f"Endowrist: {endo_roll}, {endo_pitch}, {endo_yaw}")
             # Move Endowrist
@@ -162,11 +141,11 @@ def move_robot(robot, gripper, needle, text_label, torque_button):
                     status_message = "❌ No es pot moure més en Z (relatiu)"
                     
         if current_Gripper_rpy:
-            g_roll = Gripper_rpy.get("roll")
-            g_pitch = Gripper_rpy.get("pitch")
-            g_yaw = Gripper_rpy.get("yaw")
-            s1 = Gripper_rpy.get("s1")
-            s2 = Gripper_rpy.get("s2")
+            g_roll = current_Gripper_rpy.get("roll")
+            g_pitch = current_Gripper_rpy.get("pitch")
+            g_yaw = current_Gripper_rpy.get("yaw")
+            s1 = current_Gripper_rpy.get("s1")
+            s2 = current_Gripper_rpy.get("s2")
             #print(f"Gripper: {g_roll}, {g_pitch}, {g_yaw}")
             # Move Gripper
             gripper_pose = gripper.Pose()
@@ -183,25 +162,45 @@ def move_robot(robot, gripper, needle, text_label, torque_button):
                 #Tanca la pinça → agafa l’agulla
                 needle.setParent(gripper)
                 needle.setPose(TxyzRxyz_2_Pose([0, 0, 0, 0, 0, 0]))
-                status_message = "🔵 S2 premut: agulla agafada"
-                     
+                status_message = "🔵 S1 no premut: agulla agafada"
+                
+        if 'current_Servo_torques' in locals() and current_Servo_torques:
+            t1 = current_Servo_torques.get("Torque_roll1", 0)
+            t2 = current_Servo_torques.get("Torque_roll2", 0)
+            tp = current_Servo_torques.get("Torque_pitch", 0)
+            ty = current_Servo_torques.get("Torque_yaw", 0)
+            servo_torques_msg = f"Torque R1={t1:.2f}, R2={t2:.2f}, P={tp:.2f}, Y={ty:.2f}"
+            print(servo_torques_msg)
+
+            # Determine color indicator (low/medium/high torque)
+            total_torque = abs(t1) + abs(t2) + abs(tp) + abs(ty)
+            if total_torque < 20:
+                color = "green"
+            elif total_torque < 30:
+                color = "yellow"
+            else:
+                color = "red"
+            text_label.after(0, lambda c=color: text_label.config(bg=c))
+                    
         # Update the label with the latest values
-        update_text_label(text_label, endowrist_orientation_msg, gripper_orientation_msg, status_message, torque_values)
+        update_text_label(text_label, endowrist_orientation_msg, gripper_orientation_msg, status_message, servo_torques_msg)
 
-        time.sleep(READ_INTERVAL_S)# define the reading interval
-
+        time.sleep(READ_INTERVAL_S) #define the reading interval
+        
+# Proper closing function
 def on_closing():
     global root, sock
     print("Closing...")
     try:
         sock.close()
         print("Ending Socket")
-        initialize_robodk()
-        print("Program INITIALIZED")
-    except Exceptioºn as e:
+        #initialize_robodk()
+        #print("Program INITIALIZED")
+    except Exception as e:
         #print(f"Error al tancar el socket: {e}")
         pass
     root.destroy()
+
 # Update functions for sliders
 def set_zero_yaw_tool(value):
     global ZERO_YAW_TOOL
@@ -210,6 +209,7 @@ def set_zero_yaw_tool(value):
 def set_zero_yaw_gripper(value):
     global ZERO_YAW_GRIPPER
     ZERO_YAW_GRIPPER = float(value)
+
 # Main function
 def main():
     global root, ZERO_YAW_TOOL, ZERO_YAW_GRIPPER, robot, gripper, base, text_label, absolute_path
@@ -222,10 +222,6 @@ def main():
     text_label = tk.Label(root, text="", wraplength=300)
     text_label.pack(padx=20, pady=20)
     
-    #Add torque indicator button
-    torque_button = tk.Button(root, text="Torque Level", bg="green", width=20, height=2)
-    torque_button.pack(pady=10)
-
     # Add sliders for ZERO_YAW_TOOL and ZERO_YAW_GRIPPER
     tool_yaw_slider = tk.Scale(root, from_=-180, to=180, orient=tk.HORIZONTAL, label="Tool Yaw",
                                     command=lambda value: set_zero_yaw_tool(float(value)), length=200)
@@ -248,6 +244,9 @@ def main():
     robot_thread.start()
 
     root.mainloop()
+    print("Pop-up menu closed")
+    RDK.CloseRoboDK()
+    print("RoboDK closed")
 
 if __name__ == "__main__":
     main()
